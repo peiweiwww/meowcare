@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "ingest": "npx ts-node --project tsconfig.json scripts/ingest.ts"
+    "ingest": "npx ts-node --project tsconfig.json scripts/ingest.ts",
+    "test-search": "npx ts-node --project tsconfig.json scripts/test-search.ts"
   },
   "keywords": [
     "nextjs",
