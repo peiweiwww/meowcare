@@ -39,6 +39,10 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function toPgVector(values: number[]): string {
+  return `[${values.join(",")}]`;
+}
+
 function previewContent(content: string): string {
   return content.replace(/\s+/g, " ").trim().slice(0, 200);
 }
@@ -127,57 +131,13 @@ async function main() {
     throw new Error("No embedding returned for test query.");
   }
 
-  console.log(`Embedding dimensions: ${embedding.length}`);
-  console.log(
-    `Vector preview: ${embedding.slice(0, 5).map((value) => value.toFixed(6)).join(", ")}`,
-  );
-
-  console.log("Verifying direct read access to documents table...");
-
-  const { data: documentsData, error: documentsError } = await supabaseAdmin
-    .from("documents")
-    .select("id, title, content, created_at")
-    .limit(3);
-
-  console.log("Documents SELECT raw response:", {
-    data: documentsData,
-    error: documentsError,
-  });
-
-  if (documentsError) {
-    throw new Error(`Documents SELECT failed: ${documentsError.message}`);
-  }
-
-  const documents = (documentsData ?? []) as DocumentsTableRow[];
-  console.log(`Direct SELECT returned ${documents.length} row(s).`);
-
-  for (const [index, document] of documents.entries()) {
-    console.log(`\nDocument ${index + 1}: ${document.title} (#${document.id})`);
-    console.log(`Preview: ${previewContent(document.content)}`);
-  }
-
-  console.log("\nSearching Supabase for top 3 matching documents via RPC...");
-
+  const vectorString = toPgVector(embedding);
   const rpcPayload = {
-    query_embedding: embedding,
+    query_embedding: vectorString,
     match_count: 3,
   };
 
-  console.log("RPC payload metadata:", {
-    match_count: rpcPayload.match_count,
-    vectorDimensions: embedding.length,
-    payloadType: Array.isArray(rpcPayload.query_embedding)
-      ? "number[]"
-      : typeof rpcPayload.query_embedding,
-    firstFiveValues: embedding.slice(0, 5),
-  });
-
   const { data, error } = await supabaseAdmin.rpc("match_documents", rpcPayload);
-
-  console.log("match_documents raw response:", {
-    data,
-    error,
-  });
 
   if (error) {
     throw new Error(`Supabase search failed: ${error.message}`);
@@ -190,19 +150,10 @@ async function main() {
     return;
   }
 
-  console.log(
-    "RPC returned no rows. Falling back to direct documents query and JS cosine similarity...",
-  );
-
   const { data: fallbackData, error: fallbackError } = await supabaseAdmin
     .from("documents")
     .select("id, title, content, source_url, embedding")
     .limit(200);
-
-  console.log("Fallback SELECT raw response:", {
-    rowCount: fallbackData?.length ?? 0,
-    error: fallbackError,
-  });
 
   if (fallbackError) {
     throw new Error(`Fallback SELECT failed: ${fallbackError.message}`);
@@ -233,7 +184,6 @@ async function main() {
     return;
   }
 
-  console.log("JS fallback similarity results:");
   printResults(fallbackResults);
 }
 
