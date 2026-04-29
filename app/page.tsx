@@ -6,6 +6,18 @@ type Message = {
   id: number;
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
+};
+
+type Source = {
+  title: string;
+  url: string;
+};
+
+type ChatResponse = {
+  answer?: string;
+  sources?: Source[];
+  error?: string;
 };
 
 const starterQuestions = [
@@ -14,16 +26,23 @@ const starterQuestions = [
   "Why does my cat scratch furniture?",
 ];
 
+function getLinkedSources(message: Message): Source[] {
+  return (message.sources || []).filter((source) => source.url);
+}
+
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  function sendMessage(messageText = input) {
+  async function sendMessage(messageText = input) {
     const trimmedMessage = messageText.trim();
 
-    if (!trimmedMessage) {
+    if (!trimmedMessage || isLoading) {
       return;
     }
+
+    const assistantMessageId = Date.now() + 1;
 
     setMessages((currentMessages) => [
       ...currentMessages,
@@ -33,12 +52,58 @@ export default function HomePage() {
         content: trimmedMessage,
       },
       {
-        id: Date.now() + 1,
+        id: assistantMessageId,
         role: "assistant",
         content: "Thinking...",
       },
     ]);
     setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question: trimmedMessage }),
+      });
+
+      const data = (await response.json()) as ChatResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to get an answer.");
+      }
+
+      setMessages((currentMessages) =>
+        currentMessages.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content:
+                  data.answer ||
+                  "I could not find enough information to answer that.",
+                sources: data.sources || [],
+              }
+            : message,
+        ),
+      );
+    } catch {
+      setMessages((currentMessages) =>
+        currentMessages.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content:
+                  "Sorry, I could not get an answer right now. Please try again in a moment.",
+                sources: [],
+              }
+            : message,
+        ),
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -90,6 +155,7 @@ export default function HomePage() {
                       key={question}
                       type="button"
                       onClick={() => sendMessage(question)}
+                      disabled={isLoading}
                       className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-medium text-stone-800 transition hover:border-amber-400 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     >
                       {question}
@@ -125,6 +191,23 @@ export default function HomePage() {
                       <p className="whitespace-pre-wrap text-sm leading-6">
                         {message.content}
                       </p>
+                      {message.role === "assistant" &&
+                        getLinkedSources(message).length > 0 && (
+                          <ul className="mt-3 space-y-1 text-xs text-stone-500">
+                            {getLinkedSources(message).map((source) => (
+                              <li key={`${source.title}-${source.url}`}>
+                                <a
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="underline decoration-stone-300 underline-offset-2 transition hover:text-stone-700"
+                                >
+                                  {source.title}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                     </div>
                   </article>
                 ))}
@@ -140,6 +223,7 @@ export default function HomePage() {
                     key={question}
                     type="button"
                     onClick={() => sendMessage(question)}
+                    disabled={isLoading}
                     className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:border-orange-400 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
                     {question}
@@ -157,14 +241,15 @@ export default function HomePage() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder="Ask about vomiting, feeding, scratching, hydration..."
+                disabled={isLoading}
                 className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-4 py-3 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
               />
               <button
                 type="submit"
-                disabled={!input.trim()}
+                disabled={!input.trim() || isLoading}
                 className="rounded-lg bg-stone-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
-                Send
+                {isLoading ? "Sending..." : "Send"}
               </button>
             </form>
           </div>
