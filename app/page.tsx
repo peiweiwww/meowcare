@@ -11,7 +11,7 @@ type Message = {
 
 type Source = {
   title: string;
-  url: string;
+  url?: string | null;
 };
 
 type ChatResponse = {
@@ -26,8 +26,8 @@ const starterQuestions = [
   "Why does my cat scratch furniture?",
 ];
 
-function getLinkedSources(message: Message): Source[] {
-  return (message.sources || []).filter((source) => source.url);
+function getSources(message: Message): Source[] {
+  return message.sources || [];
 }
 
 export default function HomePage() {
@@ -192,20 +192,28 @@ export default function HomePage() {
                         {message.content}
                       </p>
                       {message.role === "assistant" &&
-                        getLinkedSources(message).length > 0 && (
+                        getSources(message).length > 0 && (
                           <ul className="mt-3 space-y-1 text-xs text-stone-500">
-                            {getLinkedSources(message).map((source) => (
-                              <li key={`${source.title}-${source.url}`}>
-                                <a
-                                  href={source.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline decoration-stone-300 underline-offset-2 transition hover:text-stone-700"
-                                >
-                                  {source.title}
-                                </a>
-                              </li>
-                            ))}
+                            {getSources(message).map((source, index) => {
+                              const sourceUrl = source.url?.trim();
+
+                              return (
+                                <li key={`${source.title}-${sourceUrl || index}`}>
+                                  {sourceUrl ? (
+                                    <a
+                                      href={sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="underline decoration-stone-300 underline-offset-2 transition hover:text-stone-700"
+                                    >
+                                      {source.title}
+                                    </a>
+                                  ) : (
+                                    <span>{source.title}</span>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
                         )}
                     </div>
