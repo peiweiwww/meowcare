@@ -1,5 +1,6 @@
 "use client";
 
+import { SignOutButton } from "@clerk/nextjs";
 import { FormEvent, useState } from "react";
 
 type Message = {
@@ -128,8 +129,18 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <div className="rounded-lg bg-orange-100 px-3 py-2 text-sm font-medium text-orange-900">
-            Health, nutrition, and behavior support
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-orange-100 px-3 py-2 text-sm font-medium text-orange-900">
+              Health, nutrition, and behavior support
+            </div>
+            <SignOutButton>
+              <button
+                type="button"
+                className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-orange-400 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                Sign out
+              </button>
+            </SignOutButton>
           </div>
         </header>
 
