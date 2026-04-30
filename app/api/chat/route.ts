@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
+import { auth } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
@@ -9,6 +10,7 @@ const MATCH_COUNT = 5;
 
 type ChatRequest = {
   question?: unknown;
+  conversation_id?: unknown;
 };
 
 type MatchDocumentRow = {
@@ -21,6 +23,10 @@ type MatchDocumentRow = {
 type Source = {
   title: string;
   url: string;
+};
+
+type ConversationRow = {
+  id: string;
 };
 
 function getRequiredEnv(name: string): string {
@@ -81,7 +87,17 @@ function getTextFromAnthropicResponse(
     .trim();
 }
 
+function buildConversationTitle(question: string): string {
+  return question.length > 80 ? `${question.slice(0, 77)}...` : question;
+}
+
 export async function POST(request: Request) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   let body: ChatRequest;
 
   try {
@@ -94,6 +110,8 @@ export async function POST(request: Request) {
   }
 
   const question = typeof body.question === "string" ? body.question.trim() : "";
+  const requestedConversationId =
+    typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
 
   if (!question) {
     return NextResponse.json(
@@ -103,19 +121,59 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabaseUrl = getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-    const supabaseServiceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
     const openAiApiKey = getRequiredEnv("OPENAI_API_KEY");
     const anthropicApiKey = getRequiredEnv("ANTHROPIC_API_KEY");
 
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = createSupabaseAdminClient();
     const openai = new OpenAI({ apiKey: openAiApiKey });
     const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+    let conversationId = requestedConversationId;
+
+    if (conversationId) {
+      const { data: conversation, error: conversationError } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .eq("user_id", userId)
+        .single();
+
+      if (conversationError || !conversation) {
+        return NextResponse.json(
+          { error: "Conversation not found." },
+          { status: 404 },
+        );
+      }
+    } else {
+      const { data: conversation, error: conversationError } = await supabase
+        .from("conversations")
+        .insert({
+          user_id: userId,
+          title: buildConversationTitle(question),
+        })
+        .select("id")
+        .single();
+
+      if (conversationError || !conversation) {
+        throw new Error(
+          `Failed to create conversation: ${
+            conversationError?.message || "Unknown error"
+          }`,
+        );
+      }
+
+      conversationId = (conversation as ConversationRow).id;
+    }
+
+    const { error: userMessageError } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      role: "user",
+      content: question,
+      sources: [],
+    });
+
+    if (userMessageError) {
+      throw new Error(`Failed to save user message: ${userMessageError.message}`);
+    }
 
     const embeddingResponse = await openai.embeddings.create({
       model: EMBEDDING_MODEL,
@@ -160,12 +218,30 @@ Question: ${question}`;
     });
 
     const answer = getTextFromAnthropicResponse(message);
+    const finalAnswer =
+      answer ||
+      "I do not have enough information in the provided sources to answer that.";
+    const sources = uniqueSources(documents);
+
+    const { error: assistantMessageError } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        role: "assistant",
+        content: finalAnswer,
+        sources,
+      });
+
+    if (assistantMessageError) {
+      throw new Error(
+        `Failed to save assistant message: ${assistantMessageError.message}`,
+      );
+    }
 
     return NextResponse.json({
-      answer:
-        answer ||
-        "I do not have enough information in the provided sources to answer that.",
-      sources: uniqueSources(documents),
+      answer: finalAnswer,
+      sources,
+      conversation_id: conversationId,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

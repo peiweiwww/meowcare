@@ -1,10 +1,10 @@
 "use client";
 
 import { SignOutButton } from "@clerk/nextjs";
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Message = {
-  id: number;
+  id: string;
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
@@ -17,7 +17,24 @@ type Source = {
 
 type ChatResponse = {
   answer?: string;
+  conversation_id?: string;
   sources?: Source[];
+  error?: string;
+};
+
+type Conversation = {
+  id: string;
+  title: string;
+  created_at: string;
+};
+
+type ConversationsResponse = {
+  conversations?: Conversation[];
+  error?: string;
+};
+
+type MessagesResponse = {
+  messages?: Message[];
   error?: string;
 };
 
@@ -33,8 +50,79 @@ function getSources(message: Message): Source[] {
 
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  const refreshConversations = useCallback(async () => {
+    setIsLoadingConversations(true);
+
+    try {
+      const response = await fetch("/api/conversations");
+      const data = (await response.json()) as ConversationsResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load conversations.");
+      }
+
+      setConversations(data.conversations || []);
+    } catch {
+      setConversations([]);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshConversations();
+  }, [refreshConversations]);
+
+  async function loadConversation(nextConversationId: string) {
+    if (isLoading || isLoadingMessages) {
+      return;
+    }
+
+    setConversationId(nextConversationId);
+    setIsLoadingMessages(true);
+
+    try {
+      const response = await fetch(
+        `/api/conversations/${nextConversationId}/messages`,
+      );
+      const data = (await response.json()) as MessagesResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load messages.");
+      }
+
+      setMessages(data.messages || []);
+    } catch {
+      setMessages([
+        {
+          id: "load-error",
+          role: "assistant",
+          content:
+            "Sorry, I could not load that conversation right now. Please try again in a moment.",
+          sources: [],
+        },
+      ]);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }
+
+  function startNewChat() {
+    if (isLoading || isLoadingMessages) {
+      return;
+    }
+
+    setConversationId(null);
+    setMessages([]);
+    setInput("");
+  }
 
   async function sendMessage(messageText = input) {
     const trimmedMessage = messageText.trim();
@@ -43,12 +131,13 @@ export default function HomePage() {
       return;
     }
 
-    const assistantMessageId = Date.now() + 1;
+    const userMessageId = `user-${Date.now()}`;
+    const assistantMessageId = `assistant-${Date.now()}`;
 
     setMessages((currentMessages) => [
       ...currentMessages,
       {
-        id: Date.now(),
+        id: userMessageId,
         role: "user",
         content: trimmedMessage,
       },
@@ -67,7 +156,10 @@ export default function HomePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: trimmedMessage }),
+        body: JSON.stringify({
+          question: trimmedMessage,
+          conversation_id: conversationId,
+        }),
       });
 
       const data = (await response.json()) as ChatResponse;
@@ -89,6 +181,12 @@ export default function HomePage() {
             : message,
         ),
       );
+
+      if (data.conversation_id) {
+        setConversationId(data.conversation_id);
+      }
+
+      await refreshConversations();
     } catch {
       setMessages((currentMessages) =>
         currentMessages.map((message) =>
@@ -145,7 +243,47 @@ export default function HomePage() {
         </header>
 
         <section className="flex flex-1 flex-col overflow-hidden rounded-lg border border-amber-200 bg-white shadow-sm">
-          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <aside className="border-b border-amber-200 bg-orange-50/60 px-4 py-4 md:w-64 md:border-b-0 md:border-r">
+              <button
+                type="button"
+                onClick={startNewChat}
+                disabled={isLoading || isLoadingMessages}
+                className="mb-4 w-full rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500 disabled:cursor-not-allowed disabled:bg-stone-300"
+              >
+                New chat
+              </button>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-normal text-amber-800">
+                  Conversations
+                </p>
+                {isLoadingConversations ? (
+                  <p className="text-sm text-stone-500">Loading...</p>
+                ) : conversations.length === 0 ? (
+                  <p className="text-sm text-stone-500">No conversations yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {conversations.map((conversation) => (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        onClick={() => loadConversation(conversation.id)}
+                        disabled={isLoading || isLoadingMessages}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed ${
+                          conversation.id === conversationId
+                            ? "border-orange-300 bg-white text-stone-950"
+                            : "border-orange-100 bg-white/70 text-stone-700 hover:border-orange-300 hover:bg-white"
+                        }`}
+                      >
+                        <span className="line-clamp-2">{conversation.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </aside>
+
+            <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
             {messages.length === 0 ? (
               <div className="mx-auto flex max-w-2xl flex-col items-center justify-center py-16 text-center">
                 <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-amber-100 text-3xl">
@@ -232,6 +370,7 @@ export default function HomePage() {
                 ))}
               </div>
             )}
+            </div>
           </div>
 
           <div className="border-t border-amber-200 bg-orange-50/80 px-4 py-4 sm:px-6">
