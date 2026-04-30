@@ -128,15 +128,6 @@ export async function POST(request: Request) {
       throw new Error("OpenAI did not return an embedding.");
     }
 
-    const { error: configError } = await supabase.rpc("set_config", {
-      parameter: "ivfflat.probes",
-      value: "100",
-    });
-
-    if (configError) {
-      throw new Error(`Failed to configure vector search: ${configError.message}`);
-    }
-
     const { data, error: matchError } = await supabase.rpc("match_documents", {
       query_embedding: toPgVector(embedding),
       match_count: MATCH_COUNT,
