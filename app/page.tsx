@@ -1,6 +1,6 @@
 "use client";
 
-import { SignOutButton } from "@clerk/nextjs";
+import { SignOutButton, useUser } from "@clerk/nextjs";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Message = {
@@ -49,6 +49,7 @@ function getSources(message: Message): Source[] {
 }
 
 export default function HomePage() {
+  const { user } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -210,6 +211,9 @@ export default function HomePage() {
     sendMessage();
   }
 
+  const userDisplayName =
+    user?.firstName || user?.primaryEmailAddress?.emailAddress || "Signed in";
+
   return (
     <main className="min-h-screen bg-[#fff7ed] text-stone-950">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
@@ -230,6 +234,9 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-orange-100 px-3 py-2 text-sm font-medium text-orange-900">
               Health, nutrition, and behavior support
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-stone-600">
+              {userDisplayName}
             </div>
             <SignOutButton>
               <button
