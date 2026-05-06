@@ -11,6 +11,19 @@ const CHUNK_SIZE = 500;
 const CHUNK_OVERLAP = 50;
 const EMBEDDING_MODEL = "text-embedding-3-small";
 
+type ArticleMetadata = {
+  title: string;
+  sources: string[];
+  category: string | null;
+  tags: string[];
+  sourceFile: string;
+};
+
+type ParsedArticle = {
+  body: string;
+  metadata: ArticleMetadata;
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
 
@@ -56,6 +69,82 @@ function toPgVector(values: number[]): string {
   return `[${values.join(",")}]`;
 }
 
+function parseDelimitedList(value: string | undefined, delimiter: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(delimiter)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseMetadataBlock(block: string): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  const lines = block.split(/\r?\n/);
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      continue;
+    }
+
+    const separatorIndex = trimmedLine.indexOf(":");
+
+    if (separatorIndex === -1) {
+      throw new Error(`Invalid metadata line: "${line}"`);
+    }
+
+    const key = trimmedLine.slice(0, separatorIndex).trim().toUpperCase();
+    const value = trimmedLine.slice(separatorIndex + 1).trim();
+
+    if (!key) {
+      throw new Error(`Invalid metadata key in line: "${line}"`);
+    }
+
+    metadata[key] = value;
+  }
+
+  return metadata;
+}
+
+function parseArticleFile(fileName: string, rawContent: string): ParsedArticle {
+  const lines = rawContent.split(/\r?\n/);
+  const separatorIndex = lines.findIndex((line) => line.trim() === "---");
+
+  if (separatorIndex === -1) {
+    return {
+      body: rawContent,
+      metadata: {
+        title: fileName,
+        sources: [],
+        category: null,
+        tags: [],
+        sourceFile: fileName,
+      },
+    };
+  }
+
+  const metadataBlock = lines.slice(0, separatorIndex).join("\n");
+  const body = lines.slice(separatorIndex + 1).join("\n");
+  const parsedMetadata = parseMetadataBlock(metadataBlock);
+  const title = parsedMetadata.TITLE?.trim() || fileName;
+  const category = parsedMetadata.CATEGORY?.trim() || null;
+
+  return {
+    body,
+    metadata: {
+      title,
+      sources: parseDelimitedList(parsedMetadata.SOURCES, ";"),
+      category,
+      tags: parseDelimitedList(parsedMetadata.TAGS, ","),
+      sourceFile: fileName,
+    },
+  };
+}
+
 async function main() {
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
   const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -68,57 +157,81 @@ async function main() {
 
   const entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
   const articleFiles = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".txt"))
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
   if (articleFiles.length === 0) {
-    console.log("No .txt files found. Nothing to ingest.");
+    console.log("No .md files found. Nothing to ingest.");
     return;
   }
 
   let insertedChunks = 0;
 
   for (const fileName of articleFiles) {
-    const filePath = path.join(DATA_DIR, fileName);
-    const rawContent = await fs.readFile(filePath, "utf8");
-    const chunks = chunkText(rawContent, CHUNK_SIZE, CHUNK_OVERLAP);
+    try {
+      const filePath = path.join(DATA_DIR, fileName);
+      const rawContent = await fs.readFile(filePath, "utf8");
+      const { body, metadata } = parseArticleFile(fileName, rawContent);
+      const chunks = chunkText(body, CHUNK_SIZE, CHUNK_OVERLAP);
 
-    console.log(`Processing ${fileName}: ${chunks.length} chunk(s)`);
+      const { error: deleteError } = await supabase
+        .from("documents")
+        .delete()
+        .eq("source_file", metadata.sourceFile);
 
-    for (const [index, chunk] of chunks.entries()) {
-      console.log(
-        `Embedding chunk ${index + 1}/${chunks.length} from ${fileName}...`,
-      );
-
-      const embeddingResponse = await openai.embeddings.create({
-        model: EMBEDDING_MODEL,
-        input: chunk,
-      });
-
-      const embedding = embeddingResponse.data[0]?.embedding;
-
-      if (!embedding) {
-        throw new Error(`No embedding returned for ${fileName} chunk ${index + 1}`);
-      }
-
-      const { error } = await supabase.from("documents").insert({
-        title: fileName,
-        content: chunk,
-        source_url: "",
-        embedding: toPgVector(embedding),
-      });
-
-      if (error) {
+      if (deleteError) {
         throw new Error(
-          `Failed to insert ${fileName} chunk ${index + 1}: ${error.message}`,
+          `Failed to clear existing chunks for ${fileName}: ${deleteError.message}`,
         );
       }
 
-      insertedChunks += 1;
-      console.log(
-        `Inserted chunk ${index + 1}/${chunks.length} from ${fileName}. Total inserted: ${insertedChunks}`,
-      );
+      if (chunks.length === 0) {
+        console.log(`${fileName}: 0 chunk(s), skipped empty article body.`);
+        continue;
+      }
+
+      const rows = [];
+
+      for (const [index, chunk] of chunks.entries()) {
+        const embeddingResponse = await openai.embeddings.create({
+          model: EMBEDDING_MODEL,
+          input: chunk,
+        });
+
+        const embedding = embeddingResponse.data[0]?.embedding;
+
+        if (!embedding) {
+          throw new Error(
+            `No embedding returned for ${fileName} chunk ${index + 1}`,
+          );
+        }
+
+        rows.push({
+          title: metadata.title,
+          content: chunk,
+          source_url: metadata.sources[0] ?? "",
+          sources: metadata.sources,
+          category: metadata.category,
+          tags: metadata.tags,
+          source_file: metadata.sourceFile,
+          embedding: toPgVector(embedding),
+        });
+      }
+
+      const { error: insertError } = await supabase.from("documents").insert(rows);
+
+      if (insertError) {
+        throw new Error(
+          `Failed to insert chunks for ${fileName}: ${insertError.message}`,
+        );
+      }
+
+      insertedChunks += rows.length;
+      console.log(`${fileName}: ${rows.length} chunk(s) ingested.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`Skipping ${fileName}: ${message}`);
     }
   }
 
