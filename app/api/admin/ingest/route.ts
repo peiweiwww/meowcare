@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { isAdmin } from "@/lib/admin";
+import { isAdmin } from "@/lib/auth/isAdmin";
 import { ingestArticle } from "@/lib/ingest-core";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
@@ -32,7 +32,7 @@ function isUploadFile(value: FormDataEntryValue): value is File {
 
 export async function POST(request: Request) {
   if (!(await isAdmin())) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const formData = await request.formData();

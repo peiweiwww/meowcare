@@ -1,10 +1,11 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { AdminUploadForm } from "./AdminUploadForm";
-import { isAdmin } from "@/lib/admin";
+import { AdminArticlesList } from "./AdminArticlesList";
+import { isAdmin } from "@/lib/auth/isAdmin";
 
 export default async function AdminPage() {
   if (!(await isAdmin())) {
-    notFound();
+    redirect("/");
   }
 
   return (
@@ -29,6 +30,10 @@ export default async function AdminPage() {
 
         <section className="rounded-lg border border-amber-200 bg-white px-5 py-5 shadow-sm">
           <AdminUploadForm />
+        </section>
+
+        <section className="mt-5 rounded-lg border border-amber-200 bg-white px-5 py-5 shadow-sm">
+          <AdminArticlesList />
         </section>
       </div>
     </main>

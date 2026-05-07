@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ARTICLES_REFRESH_EVENT } from "./AdminArticlesList";
 
 type FileStatus = "pending" | "processing" | "success" | "failed";
 
@@ -93,8 +94,9 @@ export function AdminUploadForm() {
         throw new Error(data.error || "Upload failed.");
       }
 
+      const results = data.results ?? [];
       const resultsByFile = new Map(
-        (data.results ?? []).map((result) => [result.source_file, result]),
+        results.map((result) => [result.source_file, result]),
       );
 
       setItems((currentItems) =>
@@ -125,6 +127,10 @@ export function AdminUploadForm() {
           };
         }),
       );
+
+      if (results.some((result) => result.status === "success")) {
+        window.dispatchEvent(new Event(ARTICLES_REFRESH_EVENT));
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Upload failed.";
 
