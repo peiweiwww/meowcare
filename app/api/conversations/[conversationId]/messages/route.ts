@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     conversationId: string;
-  };
+  }>;
 };
 
 type MessageRow = {
@@ -18,6 +18,7 @@ type MessageRow = {
 
 export async function GET(_request: Request, { params }: RouteContext) {
   const { userId } = await auth();
+  const { conversationId } = await params;
 
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -28,7 +29,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const { data: conversation, error: conversationError } = await supabase
       .from("conversations")
       .select("id")
-      .eq("id", params.conversationId)
+      .eq("id", conversationId)
       .eq("user_id", userId)
       .single();
 
@@ -42,7 +43,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const { data, error } = await supabase
       .from("messages")
       .select("id, role, content, sources, created_at")
-      .eq("conversation_id", params.conversationId)
+      .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
 
     if (error) {
