@@ -35,6 +35,8 @@
     "@anthropic-ai/sdk": "^0.95.1",
     "@clerk/nextjs": "^6.39.3",
     "@supabase/supabase-js": "^2.104.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "dotenv": "^17.4.2",
     "next": "^15.5.18",
     "openai": "^6.34.0",

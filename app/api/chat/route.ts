@@ -3,6 +3,9 @@ import { auth } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { chatRateLimiter } from "@/lib/rate-limit";
+
+const MAX_QUESTION_LENGTH = 2000;
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
@@ -117,6 +120,25 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Question is required." },
       { status: 400 },
+    );
+  }
+
+  if (question.length > MAX_QUESTION_LENGTH) {
+    return NextResponse.json(
+      { error: `Question too long, max ${MAX_QUESTION_LENGTH} chars` },
+      { status: 400 },
+    );
+  }
+
+  const { success, reset } = await chatRateLimiter.limit(userId);
+
+  if (!success) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded, please try again later" },
+      {
+        status: 429,
+        headers: { "X-RateLimit-Reset": String(reset) },
+      },
     );
   }
 
