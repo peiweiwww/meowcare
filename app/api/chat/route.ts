@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { chatRateLimiter } from "@/lib/rate-limit";
 
@@ -17,9 +18,11 @@ type ChatRequest = {
 };
 
 type MatchDocumentRow = {
+  id?: number;
   title: string;
   content: string;
   source_url?: string | null;
+  source_file?: string | null;
   similarity?: number;
 };
 
@@ -92,6 +95,54 @@ function getTextFromAnthropicResponse(
 
 function buildConversationTitle(question: string): string {
   return question.length > 80 ? `${question.slice(0, 77)}...` : question;
+}
+
+async function logQueryAnalytics(
+  supabase: SupabaseClient,
+  userId: string,
+  question: string,
+  documents: MatchDocumentRow[],
+) {
+  try {
+    let retrievedSources = documents
+      .map((document) => document.source_file?.trim() || "")
+      .filter(Boolean);
+
+    if (retrievedSources.length === 0) {
+      const documentIds = documents
+        .map((document) => document.id)
+        .filter((id): id is number => typeof id === "number");
+
+      if (documentIds.length > 0) {
+        const { data, error } = await supabase
+          .from("documents")
+          .select("source_file")
+          .in("id", documentIds);
+
+        if (error) {
+          throw new Error(`Failed to load query sources: ${error.message}`);
+        }
+
+        retrievedSources = ((data ?? []) as { source_file?: string | null }[])
+          .map((document) => document.source_file?.trim() || "")
+          .filter(Boolean);
+      }
+    }
+
+    const uniqueRetrievedSources = Array.from(new Set(retrievedSources));
+    const { error } = await supabase.from("queries").insert({
+      user_id: userId,
+      question,
+      retrieved_sources: uniqueRetrievedSources,
+    });
+
+    if (error) {
+      throw new Error(`Failed to log query analytics: ${error.message}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Query analytics logging failed:", message);
+  }
 }
 
 export async function POST(request: Request) {
@@ -259,6 +310,8 @@ Question: ${question}`;
         `Failed to save assistant message: ${assistantMessageError.message}`,
       );
     }
+
+    void logQueryAnalytics(supabase, userId, question, documents);
 
     return NextResponse.json({
       answer: finalAnswer,
