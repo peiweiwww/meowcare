@@ -38,6 +38,11 @@ type MessagesResponse = {
   error?: string;
 };
 
+type DeleteConversationResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
 const starterQuestions = [
   "Why is my cat vomiting?",
   "How much should I feed my kitten?",
@@ -85,6 +90,9 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<
+    string | null
+  >(null);
 
   const refreshConversations = useCallback(async () => {
     setIsLoadingConversations(true);
@@ -151,6 +159,46 @@ export default function HomePage() {
     setConversationId(null);
     setMessages([]);
     setInput("");
+  }
+
+  async function deleteConversation(nextConversationId: string) {
+    if (
+      isLoading ||
+      isLoadingMessages ||
+      deletingConversationId ||
+      !window.confirm("Delete this conversation?")
+    ) {
+      return;
+    }
+
+    setDeletingConversationId(nextConversationId);
+
+    try {
+      const response = await fetch(`/api/conversations/${nextConversationId}`, {
+        method: "DELETE",
+      });
+      const data = (await response.json()) as DeleteConversationResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete conversation.");
+      }
+
+      setConversations((currentConversations) =>
+        currentConversations.filter(
+          (conversation) => conversation.id !== nextConversationId,
+        ),
+      );
+
+      if (nextConversationId === conversationId) {
+        setConversationId(null);
+        setMessages([]);
+        setInput("");
+      }
+    } catch {
+      alert("Sorry, I could not delete that conversation right now.");
+    } finally {
+      setDeletingConversationId(null);
+    }
   }
 
   async function sendMessage(messageText = input) {
@@ -298,21 +346,62 @@ export default function HomePage() {
                   <p className="text-sm text-stone-500">No conversations yet.</p>
                 ) : (
                   <div className="space-y-2">
-                    {conversations.map((conversation) => (
-                      <button
-                        key={conversation.id}
-                        type="button"
-                        onClick={() => loadConversation(conversation.id)}
-                        disabled={isLoading || isLoadingMessages}
-                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed ${
-                          conversation.id === conversationId
-                            ? "border-orange-300 bg-white text-stone-950"
-                            : "border-orange-100 bg-white/70 text-stone-700 hover:border-orange-300 hover:bg-white"
-                        }`}
-                      >
-                        <span className="line-clamp-2">{conversation.title}</span>
-                      </button>
-                    ))}
+                    {conversations.map((conversation) => {
+                      const isDeleting =
+                        deletingConversationId === conversation.id;
+                      const isSelected = conversation.id === conversationId;
+                      const isDisabled =
+                        isLoading || isLoadingMessages || isDeleting;
+
+                      return (
+                        <div
+                          key={conversation.id}
+                          className={`group flex w-full items-stretch rounded-lg border text-sm transition ${
+                            isSelected
+                              ? "border-orange-300 bg-white text-stone-950"
+                              : "border-orange-100 bg-white/70 text-stone-700 hover:border-orange-300 hover:bg-white"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => loadConversation(conversation.id)}
+                            disabled={isDisabled}
+                            className="min-w-0 flex-1 px-3 py-2 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500 disabled:cursor-not-allowed"
+                          >
+                            <span className="line-clamp-2">
+                              {conversation.title}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Delete conversation: ${conversation.title}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              deleteConversation(conversation.id);
+                            }}
+                            disabled={isDisabled}
+                            className="flex w-10 shrink-0 items-center justify-center rounded-r-lg text-stone-400 transition hover:bg-orange-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-400 disabled:cursor-not-allowed disabled:text-stone-300 group-hover:text-stone-600"
+                          >
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v5" />
+                              <path d="M14 11v5" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
