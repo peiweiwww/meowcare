@@ -43,18 +43,50 @@ type DeleteConversationResponse = {
   error?: string;
 };
 
-const starterQuestions = [
+type ToastMessage = {
+  id: number;
+  message: string;
+};
+
+const homeStarterQuestions = [
   "Why is my cat vomiting?",
   "How much should I feed my kitten?",
   "Why does my cat scratch furniture?",
 ];
 
-function getUniqueSources(message: Message): Source[] {
-  const sources = message.sources || [];
+const conversationStarterQuestions = [
+  "What human foods are toxic to cats?",
+  "How do I introduce a new cat to my resident cat?",
+  "Why does my cat zoom around at night?",
+];
+
+function getCitedSourceNumbers(content: string): Set<number> {
+  const sourceNumbers = new Set<number>();
+  const citationPattern = /\[(\d+)\]/g;
+  let match = citationPattern.exec(content);
+
+  while (match) {
+    const sourceNumber = Number(match[1]);
+
+    if (Number.isInteger(sourceNumber) && sourceNumber > 0) {
+      sourceNumbers.add(sourceNumber);
+    }
+
+    match = citationPattern.exec(content);
+  }
+
+  return sourceNumbers;
+}
+
+function getCitedSources(message: Message): Source[] {
+  const sourceNumbers = getCitedSourceNumbers(message.content);
+  const citedSources =
+    message.sources?.filter((_source, index) => sourceNumbers.has(index + 1)) ||
+    [];
   const seenTitles = new Set<string>();
   const seenUrls = new Set<string>();
 
-  return sources.filter((source) => {
+  return citedSources.filter((source) => {
     const title = source.title.trim();
     const url = source.url?.trim() || "";
     const normalizedTitle = title.toLowerCase();
@@ -93,6 +125,25 @@ export default function HomePage() {
   const [deletingConversationId, setDeletingConversationId] = useState<
     string | null
   >(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToast({ id: Date.now(), message });
+  }, []);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [toast]);
 
   const refreshConversations = useCallback(async () => {
     setIsLoadingConversations(true);
@@ -137,15 +188,7 @@ export default function HomePage() {
 
       setMessages(data.messages || []);
     } catch {
-      setMessages([
-        {
-          id: "load-error",
-          role: "assistant",
-          content:
-            "Sorry, I could not load that conversation right now. Please try again in a moment.",
-          sources: [],
-        },
-      ]);
+      showToast("Could not load conversation. Please try again.");
     } finally {
       setIsLoadingMessages(false);
     }
@@ -195,7 +238,7 @@ export default function HomePage() {
         setInput("");
       }
     } catch {
-      alert("Sorry, I could not delete that conversation right now.");
+      showToast("Could not delete conversation. Please try again.");
     } finally {
       setDeletingConversationId(null);
     }
@@ -266,16 +309,13 @@ export default function HomePage() {
       await refreshConversations();
     } catch {
       setMessages((currentMessages) =>
-        currentMessages.map((message) =>
-          message.id === assistantMessageId
-            ? {
-                ...message,
-                content:
-                  "Sorry, I could not get an answer right now. Please try again in a moment.",
-                sources: [],
-              }
-            : message,
+        currentMessages.filter(
+          (message) =>
+            message.id !== userMessageId && message.id !== assistantMessageId,
         ),
+      );
+      showToast(
+        "Could not send message. Please check your connection and try again.",
       );
     } finally {
       setIsLoading(false);
@@ -292,6 +332,45 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#fff7ed] text-stone-950">
+      {toast && (
+        <div className="fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-stone-800 shadow-lg">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="mt-0.5 h-5 w-5 shrink-0 text-orange-700"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          >
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+            <path d="M10.3 3.9 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+          </svg>
+          <p className="min-w-0 flex-1 leading-5">{toast.message}</p>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={() => setToast(null)}
+            className="-mr-1 rounded-md p-1 text-stone-500 transition hover:bg-orange-100 hover:text-stone-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
         <header className="mb-5 flex flex-col gap-4 rounded-lg border border-amber-200 bg-white/85 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -422,7 +501,7 @@ export default function HomePage() {
                 </p>
 
                 <div className="mt-8 grid w-full gap-3 sm:grid-cols-3">
-                  {starterQuestions.map((question) => (
+                  {homeStarterQuestions.map((question) => (
                     <button
                       key={question}
                       type="button"
@@ -438,7 +517,7 @@ export default function HomePage() {
             ) : (
               <div className="space-y-4">
                 {messages.map((message) => {
-                  const sources = getUniqueSources(message);
+                  const sources = getCitedSources(message);
 
                   return (
                     <article
@@ -511,7 +590,7 @@ export default function HomePage() {
           <div className="border-t border-amber-200 bg-orange-50/80 px-4 py-4 sm:px-6">
             {messages.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
-                {starterQuestions.map((question) => (
+                {conversationStarterQuestions.map((question) => (
                   <button
                     key={question}
                     type="button"

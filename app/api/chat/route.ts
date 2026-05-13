@@ -275,7 +275,7 @@ export async function POST(request: Request) {
 
 Answer the user's question using only the context below.
 If the context does not contain enough information to answer, say that you do not have enough information in the provided sources.
-Cite sources inline using the bracketed source numbers, such as [1] or [2].
+Cite sources inline using [1], [2] notation matching the order of provided sources. If you cannot answer from the sources, do not cite any source.
 Do not provide diagnosis, emergency triage, or treatment instructions beyond what is supported by the context.
 
 Context:
