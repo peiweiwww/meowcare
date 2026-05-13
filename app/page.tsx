@@ -44,8 +44,36 @@ const starterQuestions = [
   "Why does my cat scratch furniture?",
 ];
 
-function getSources(message: Message): Source[] {
-  return message.sources || [];
+function getUniqueSources(message: Message): Source[] {
+  const sources = message.sources || [];
+  const seenTitles = new Set<string>();
+  const seenUrls = new Set<string>();
+
+  return sources.filter((source) => {
+    const title = source.title.trim();
+    const url = source.url?.trim() || "";
+    const normalizedTitle = title.toLowerCase();
+    const normalizedUrl = url.toLowerCase();
+
+    if (!title) {
+      return false;
+    }
+
+    if (
+      seenTitles.has(normalizedTitle) ||
+      (normalizedUrl && seenUrls.has(normalizedUrl))
+    ) {
+      return false;
+    }
+
+    seenTitles.add(normalizedTitle);
+
+    if (normalizedUrl) {
+      seenUrls.add(normalizedUrl);
+    }
+
+    return true;
+  });
 }
 
 export default function HomePage() {
@@ -301,8 +329,7 @@ export default function HomePage() {
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-stone-600">
                   Start with a question about symptoms, feeding, behavior, or
-                  day-to-day care. MeowCare will draft a helpful answer here,
-                  with citations coming in the next version.
+                  day-to-day care. MeowCare will draft a helpful answer here.
                 </p>
 
                 <div className="mt-8 grid w-full gap-3 sm:grid-cols-3">
@@ -321,60 +348,72 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {messages.map((message) => (
-                  <article
-                    key={message.id}
-                    className={`flex ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-lg px-4 py-3 shadow-sm sm:max-w-[72%] ${
-                        message.role === "user"
-                          ? "bg-orange-600 text-white"
-                          : "border border-amber-200 bg-amber-50 text-stone-800"
+                {messages.map((message) => {
+                  const sources = getUniqueSources(message);
+
+                  return (
+                    <article
+                      key={message.id}
+                      className={`flex ${
+                        message.role === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <p
-                        className={`mb-1 text-xs font-semibold uppercase tracking-normal ${
+                      <div
+                        className={`max-w-[85%] rounded-lg px-4 py-3 shadow-sm sm:max-w-[72%] ${
                           message.role === "user"
-                            ? "text-orange-100"
-                            : "text-amber-800"
+                            ? "bg-orange-600 text-white"
+                            : "border border-amber-200 bg-amber-50 text-stone-800"
                         }`}
                       >
-                        {message.role === "user" ? "You" : "MeowCare"}
-                      </p>
-                      <p className="whitespace-pre-wrap text-sm leading-6">
-                        {message.content}
-                      </p>
-                      {message.role === "assistant" &&
-                        getSources(message).length > 0 && (
-                          <ul className="mt-3 space-y-1 text-xs text-stone-500">
-                            {getSources(message).map((source, index) => {
-                              const sourceUrl = source.url?.trim();
+                        <p
+                          className={`mb-1 text-xs font-semibold uppercase tracking-normal ${
+                            message.role === "user"
+                              ? "text-orange-100"
+                              : "text-amber-800"
+                          }`}
+                        >
+                          {message.role === "user" ? "You" : "MeowCare"}
+                        </p>
+                        <p className="whitespace-pre-wrap text-sm leading-6">
+                          {message.content}
+                        </p>
+                        {message.role === "assistant" && sources.length > 0 && (
+                          <div className="mt-4 border-t border-amber-200 pt-3 text-xs text-stone-500">
+                            <p className="mb-2 font-semibold uppercase tracking-normal text-amber-800">
+                              Sources
+                            </p>
+                            <ul className="space-y-1.5">
+                              {sources.map((source, index) => {
+                                const sourceTitle = source.title.trim();
+                                const sourceUrl = source.url?.trim();
 
-                              return (
-                                <li key={`${source.title}-${sourceUrl || index}`}>
-                                  {sourceUrl ? (
-                                    <a
-                                      href={sourceUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="underline decoration-stone-300 underline-offset-2 transition hover:text-stone-700"
-                                    >
-                                      {source.title}
-                                    </a>
-                                  ) : (
-                                    <span>{source.title}</span>
-                                  )}
-                                </li>
-                              );
-                            })}
-                          </ul>
+                                return (
+                                  <li
+                                    key={`${sourceTitle}-${sourceUrl || index}`}
+                                    className="min-w-0 break-words leading-5"
+                                  >
+                                    {sourceUrl ? (
+                                      <a
+                                        href={sourceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="underline decoration-stone-300 underline-offset-2 transition hover:text-stone-700"
+                                      >
+                                        {sourceTitle}
+                                      </a>
+                                    ) : (
+                                      <span>{sourceTitle}</span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
                         )}
-                    </div>
-                  </article>
-                ))}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
             </div>
