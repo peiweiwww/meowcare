@@ -613,6 +613,8 @@ export default function HomePage() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder="Ask about vomiting, feeding, scratching, hydration..."
+                autoComplete="off"
+                spellCheck={true}
                 disabled={isLoading}
                 className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-4 py-3 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
               />
