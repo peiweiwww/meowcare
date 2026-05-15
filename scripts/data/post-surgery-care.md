@@ -1,0 +1,23 @@
+TITLE: Post-Spay and Neuter Care: What to Expect After Surgery
+SOURCES:
+CATEGORY: care
+TAGS: spay, neuter, surgery, recovery, e-collar
+---
+
+Bringing your cat home from a spay or neuter surgery can feel a little scary — they're groggy, they don't quite act like themselves, and you're suddenly responsible for nursing them through recovery. The good news: cats generally bounce back fast from these surgeries, and most recoveries are smooth as long as you stick to a few basics.
+
+**The first 24 hours.** Your cat will be drowsy from anesthesia. They may walk weirdly, seem disoriented, or not want to be touched. This is normal. Set them up in a quiet, warm room without high places to jump from — anesthesia affects coordination, and you don't want them attempting their usual leap to the top of the bookshelf. A comfortable spot on the floor with a litter box, water, and a small amount of food nearby works well. Some cats won't eat much that first night, which is fine; just make sure they're drinking water. By the next morning, most cats are mostly back to themselves.
+
+**Monitoring the incision.** Check it once or twice a day. A small amount of redness and swelling is normal for the first few days. What's not normal: discharge (especially anything yellow, green, or smelly), increasing redness or swelling, a wound that's opening up, or your cat licking it obsessively. If anything looks off, call the vet — wound infections after spay/neuter are uncommon but treatable when caught early. Female cats (spay) have a longer incision on the belly; males (neuter) have a smaller incision in the scrotal area, sometimes without sutures because the technique uses tissue glue or just leaves it to close on its own.
+
+**The cone of shame.** Most vets send cats home with an Elizabethan collar (e-collar, a.k.a. the lampshade) and many cat owners take it off because their cat looks miserable. Don't. Cats can lick or chew out their stitches in literal seconds, and a cat who pulls out their internal sutures is an emergency vet trip. The collar usually needs to stay on for 7-14 days, until the incision is fully healed. If the rigid plastic cone is making your cat truly miserable, there are alternatives: soft fabric cones, inflatable donut collars, or recovery suits (basically a onesie that covers the incision). Ask your vet which is okay for your cat's specific situation — recovery suits work great for spays but aren't always appropriate for male neuter recoveries.
+
+**Activity restrictions.** This is where it gets hard, because cats don't understand "take it easy." For about 10-14 days, you want to limit running, jumping, and rough play. This means no climbing the cat tree, no zoomies down the hallway, ideally no jumping on and off furniture. Practical approaches include keeping them confined to one or two rooms with no high surfaces, putting away interactive toys for the recovery period, and separating from other pets if play tends to get rough. It's annoying, but it really matters — over-exertion is one of the main causes of incision complications.
+
+**Eating and drinking.** Most cats are eating normally within 24 hours. Offer a small meal the night of surgery and don't worry if they ignore it; offer breakfast as usual the next morning. If they're not eating by 24-48 hours post-surgery, that's worth a call to the vet. Some cats also have constipation for a few days after anesthesia — just keep them hydrated and it usually resolves on its own.
+
+**Behavior changes.** A surprising number of owners panic because their cat is "acting weird" after surgery. Hiding more, being clingy, sleeping a lot, being grumpy with other pets — these are all normal for the first few days. Most cats are completely back to normal within a week. Hormonal behavior changes (less spraying, less roaming desire, less aggression in unneutered males) take longer to fade, sometimes a few weeks to a couple months as residual hormones leave the system.
+
+**When to call the vet:** anything that worries you, but specifically: incision opening or bleeding, refusing to eat for more than 48 hours, vomiting more than once or twice, lethargy that's getting worse instead of better, fever (cats normally run 100.5-102.5°F), or signs of pain that aren't improving (hiding more, growling when touched, hunched posture). Most clinics will do a phone check-in if you call with concerns.
+
+The vast majority of recoveries are uneventful. A few days of mild grumpiness, then they're back to ruling the household and pretending the whole thing never happened.

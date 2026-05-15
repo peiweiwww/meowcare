@@ -339,31 +339,34 @@ export default function HomePage() {
   }
 
   function handleConversationQuestionClick(question: string, index: number) {
-    const nextUsedQuestions = new Set(usedQuestions);
-    nextUsedQuestions.add(question);
+    setUsedQuestions((currentUsedQuestions) => {
+      const nextUsedQuestions = new Set(currentUsedQuestions);
+      nextUsedQuestions.add(question);
 
-    const replacementQuestion = conversationQuestionPool.find(
-      (poolQuestion) =>
-        !nextUsedQuestions.has(poolQuestion) &&
-        !shownQuestions.some(
-          (shownQuestion, shownIndex) =>
-            shownIndex !== index && shownQuestion === poolQuestion,
-        ),
-    );
+      setShownQuestions((currentQuestions) => {
+        const replacementQuestion = conversationQuestionPool.find(
+          (poolQuestion) =>
+            !nextUsedQuestions.has(poolQuestion) &&
+            !currentQuestions.some(
+              (shownQuestion, shownIndex) =>
+                shownIndex !== index && shownQuestion === poolQuestion,
+            ),
+        );
 
-    setUsedQuestions(nextUsedQuestions);
+        if (!replacementQuestion) {
+          return currentQuestions;
+        }
 
-    if (replacementQuestion) {
-      setShownQuestions((currentQuestions) =>
-        currentQuestions.map((currentQuestion, currentIndex) =>
+        return currentQuestions.map((currentQuestion, currentIndex) =>
           currentIndex === index ? replacementQuestion : currentQuestion,
-        ),
-      );
-    }
+        );
+      });
+
+      return nextUsedQuestions;
+    });
 
     sendMessage(question);
   }
-
   const userDisplayName =
     user?.firstName || user?.primaryEmailAddress?.emailAddress || "Signed in";
 
