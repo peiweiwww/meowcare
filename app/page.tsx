@@ -118,6 +118,39 @@ function getCitedSources(message: Message): Source[] {
   });
 }
 
+function rotateSuggestedQuestions(
+  currentQuestions: string[],
+  usedQuestions: Set<string>,
+  clickedQuestion: string,
+  clickedIndex: number,
+): { shownQuestions: string[]; usedQuestions: Set<string> } {
+  const nextUsedQuestions = new Set(usedQuestions);
+  nextUsedQuestions.add(clickedQuestion);
+
+  const replacementQuestion = conversationQuestionPool.find(
+    (poolQuestion) =>
+      !nextUsedQuestions.has(poolQuestion) &&
+      !currentQuestions.some(
+        (shownQuestion, shownIndex) =>
+          shownIndex !== clickedIndex && shownQuestion === poolQuestion,
+      ),
+  );
+
+  if (!replacementQuestion) {
+    return {
+      shownQuestions: currentQuestions,
+      usedQuestions: nextUsedQuestions,
+    };
+  }
+
+  return {
+    shownQuestions: currentQuestions.map((currentQuestion, currentIndex) =>
+      currentIndex === clickedIndex ? replacementQuestion : currentQuestion,
+    ),
+    usedQuestions: nextUsedQuestions,
+  };
+}
+
 export default function HomePage() {
   const { user } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -339,31 +372,15 @@ export default function HomePage() {
   }
 
   function handleConversationQuestionClick(question: string, index: number) {
-    setUsedQuestions((currentUsedQuestions) => {
-      const nextUsedQuestions = new Set(currentUsedQuestions);
-      nextUsedQuestions.add(question);
+    const rotatedQuestions = rotateSuggestedQuestions(
+      shownQuestions,
+      usedQuestions,
+      question,
+      index,
+    );
 
-      setShownQuestions((currentQuestions) => {
-        const replacementQuestion = conversationQuestionPool.find(
-          (poolQuestion) =>
-            !nextUsedQuestions.has(poolQuestion) &&
-            !currentQuestions.some(
-              (shownQuestion, shownIndex) =>
-                shownIndex !== index && shownQuestion === poolQuestion,
-            ),
-        );
-
-        if (!replacementQuestion) {
-          return currentQuestions;
-        }
-
-        return currentQuestions.map((currentQuestion, currentIndex) =>
-          currentIndex === index ? replacementQuestion : currentQuestion,
-        );
-      });
-
-      return nextUsedQuestions;
-    });
+    setShownQuestions(rotatedQuestions.shownQuestions);
+    setUsedQuestions(rotatedQuestions.usedQuestions);
 
     sendMessage(question);
   }

@@ -1,5 +1,5 @@
 TITLE: How Cats Show Love: Headbutts, Slow Blinks, Purring, and Other Affection Signals
-SOURCES:
+SOURCES: https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feline-behavior-issues
 CATEGORY: behavior
 TAGS: body-language, affection, slow-blink, headbutt, purring, communication
 ---

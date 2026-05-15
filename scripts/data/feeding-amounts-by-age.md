@@ -1,5 +1,5 @@
 TITLE: How Much and How Often to Feed Your Cat at Every Life Stage
-SOURCES:
+SOURCES: https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feeding
 CATEGORY: nutrition
 TAGS: feeding, kittens, adult-cats, senior-cats, portion-control
 ---

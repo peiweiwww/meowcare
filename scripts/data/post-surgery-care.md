@@ -1,5 +1,5 @@
 TITLE: Post-Spay and Neuter Care: What to Expect After Surgery
-SOURCES:
+SOURCES: https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feline-health-topics/spaying-and-neutering
 CATEGORY: care
 TAGS: spay, neuter, surgery, recovery, e-collar
 ---

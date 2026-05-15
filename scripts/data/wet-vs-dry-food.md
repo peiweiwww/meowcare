@@ -1,5 +1,5 @@
 TITLE: Wet Food vs. Dry Food vs. Raw: How to Choose What to Feed Your Cat
-SOURCES:
+SOURCES: https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feeding
 CATEGORY: nutrition
 TAGS: feeding, wet-food, dry-food, raw-diet, hydration
 ---

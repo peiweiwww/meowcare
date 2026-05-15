@@ -1,5 +1,5 @@
 TITLE: How to Read Cat Food Labels: Protein, AAFCO, and What Actually Matters
-SOURCES:
+SOURCES: https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feeding
 CATEGORY: nutrition
 TAGS: nutrition-labels, AAFCO, protein, taurine, ingredients
 ---

@@ -1,5 +1,5 @@
 TITLE: Why Cats Knead (Make Biscuits) and What It Means
-SOURCES:
+SOURCES: https://www.vet.cornell.edu/departments-centers-and-institutes/cornell-feline-health-center/health-information/feline-behavior-issues
 CATEGORY: behavior
 TAGS: kneading, biscuits, contentment, scent-marking, behavior
 ---
