@@ -54,10 +54,15 @@ const homeStarterQuestions = [
   "Why does my cat scratch furniture?",
 ];
 
-const conversationStarterQuestions = [
+const conversationQuestionPool = [
   "What human foods are toxic to cats?",
   "How do I introduce a new cat to my resident cat?",
   "Why does my cat zoom around at night?",
+  "Why is my cat peeing outside the litter box?",
+  "Is wet food or dry food better for my cat?",
+  "How do I care for my cat after spay surgery?",
+  "Why does my cat knead with her paws?",
+  "My cat is sneezing a lot, should I worry?",
 ];
 
 function getCitedSourceNumbers(content: string): Set<number> {
@@ -126,6 +131,12 @@ export default function HomePage() {
     string | null
   >(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [shownQuestions, setShownQuestions] = useState<string[]>(
+    conversationQuestionPool.slice(0, 3),
+  );
+  const [usedQuestions, setUsedQuestions] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const showToast = useCallback((message: string) => {
     setToast({ id: Date.now(), message });
@@ -325,6 +336,32 @@ export default function HomePage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     sendMessage();
+  }
+
+  function handleConversationQuestionClick(question: string, index: number) {
+    const nextUsedQuestions = new Set(usedQuestions);
+    nextUsedQuestions.add(question);
+
+    const replacementQuestion = conversationQuestionPool.find(
+      (poolQuestion) =>
+        !nextUsedQuestions.has(poolQuestion) &&
+        !shownQuestions.some(
+          (shownQuestion, shownIndex) =>
+            shownIndex !== index && shownQuestion === poolQuestion,
+        ),
+    );
+
+    setUsedQuestions(nextUsedQuestions);
+
+    if (replacementQuestion) {
+      setShownQuestions((currentQuestions) =>
+        currentQuestions.map((currentQuestion, currentIndex) =>
+          currentIndex === index ? replacementQuestion : currentQuestion,
+        ),
+      );
+    }
+
+    sendMessage(question);
   }
 
   const userDisplayName =
@@ -590,11 +627,11 @@ export default function HomePage() {
           <div className="border-t border-amber-200 bg-orange-50/80 px-4 py-4 sm:px-6">
             {messages.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
-                {conversationStarterQuestions.map((question) => (
+                {shownQuestions.map((question, index) => (
                   <button
                     key={question}
                     type="button"
-                    onClick={() => sendMessage(question)}
+                    onClick={() => handleConversationQuestionClick(question, index)}
                     disabled={isLoading}
                     className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:border-orange-400 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
